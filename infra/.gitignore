@@ -1,0 +1,11 @@
+# Environment variables
+.env
+.env.*
+
+# Terraform (if used later)
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# OS files
+.DS_Store

@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13-alpine
+    network_mode: "host"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: blog_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ../backend
+      network: host
+    network_mode: "host"
+    environment:
+      DB_HOST: 127.0.0.1
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: blog_db
+      DB_PORT: 5432
+      HF_API_KEY: ${HF_API_KEY}
+    volumes:
+      - models_cache:/app/models_cache
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ../frontend
+      network: host
+    network_mode: "host"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  models_cache:

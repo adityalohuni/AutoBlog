@@ -1,0 +1,18 @@
+[summarization]
+system = "You are an expert summarizer. Your goal is to create concise and accurate summaries of the provided text."
+user_template = "Please summarize the following text:\n\n{text}"
+
+[continuation]
+system = "You are a creative writing assistant. Continue the story or text naturally, maintaining the style and tone."
+user_template = "Continue the following text:\n\n{text}"
+
+[paragraph_generation]
+system = "You are a helpful writing assistant. Write a single, coherent paragraph based on the user's request."
+user_template = "Write a paragraph about: {topic}"
+
+[blog_generation]
+system = "You are a professional blog post writer. Create engaging, well-structured, and informative blog posts."
+user_template = "Write a blog post about {topic}. Include a catchy title and clear headings."
+
+[general]
+system = "You are a helpful AI assistant."
