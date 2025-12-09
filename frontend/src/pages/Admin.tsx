@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit2, Trash2, X, Sparkles, FileText, Settings } from 'lucide-react';
-import { getArticles, deleteArticle, updateArticle, getAiModels, generateNewArticle } from '../api/client';
+import { getArticles, deleteArticle, updateArticle } from '../api/client';
+import { AIService } from '../services/AIService';
+import { articleService } from '../services/ArticleService';
 import AiEditor from '../components/AiEditor';
 
 interface Article {
@@ -34,7 +36,7 @@ const Admin: React.FC = () => {
     localStorage.setItem('defaultModel', defaultModel);
     setGenModel(defaultModel);
     setShowSettingsModal(false);
-    getAiModels().then(setAvailableModels).catch(console.error);
+    AIService.getInstance().getAiModels().then(setAvailableModels).catch(console.error);
   };
 
   const fetchArticles = async () => {
@@ -50,7 +52,7 @@ const Admin: React.FC = () => {
 
   useEffect(() => {
     fetchArticles();
-    getAiModels().then(setAvailableModels).catch(console.error);
+    AIService.getInstance().getAiModels().then(setAvailableModels).catch(console.error);
   }, []);
 
   const handleDelete = async (id: any) => {
@@ -67,7 +69,7 @@ const Admin: React.FC = () => {
   const handleGenerateSubmit = async () => {
     setGenerating(true);
     try {
-      await generateNewArticle({ title: genTitle, context: genContext, model: genModel });
+      await articleService.generateNewArticle({ title: genTitle, context: genContext, model: genModel });
       setShowGenerateModal(false);
       setGenTitle('');
       setGenContext('');

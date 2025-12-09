@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Save, X, Download, Wand2, Type, Cpu } from 'lucide-react';
-import { getAiModels, generateAiText, downloadModel, getPrompts } from '../api/client';
+import { getPrompts } from '../api/client';
+import { AIService } from '../services/AIService';
 
 interface AiEditorProps {
   initialContent?: string;
@@ -25,7 +26,7 @@ const AiEditor: React.FC<AiEditorProps> = ({ initialContent, onSave, onCancel })
   useEffect(() => {
     const fetchModels = async () => {
       try {
-        const data = await getAiModels();
+        const data = await AIService.getInstance().getAiModels();
         setModels(data);
         if (data && Object.keys(data).length > 0 && !data[selectedModel]) {
             setSelectedModel(Object.keys(data)[0]);
@@ -51,7 +52,7 @@ const AiEditor: React.FC<AiEditorProps> = ({ initialContent, onSave, onCancel })
     setDownloading(true);
     setDownloadProgress(null);
     try {
-      await downloadModel(selectedModel, (progress: any) => {
+      await AIService.getInstance().downloadModel(selectedModel, (progress: any) => {
           setDownloadProgress(progress);
       });
       alert(`Model ${selectedModel} downloaded/preloaded successfully!`);
@@ -88,7 +89,7 @@ const AiEditor: React.FC<AiEditorProps> = ({ initialContent, onSave, onCancel })
         maxTokens = 150;
       }
 
-      const { text } = await generateAiText(prompt, selectedModel, maxTokens);
+      const text = await AIService.getInstance().generateAiText(prompt, selectedModel, maxTokens);
       
       if (type === 'complete') {
         setContent(prev => prev + text);

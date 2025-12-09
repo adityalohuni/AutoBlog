@@ -2,7 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Calendar, Clock, Volume2, Pause, Play } from 'lucide-react';
-import { getArticle, generateAiAudio, Article as ArticleType } from '../api/client';
+import { getArticle, Article as ArticleType } from '../api/client';
+import { AudioPipeline } from '../pipelines/audio/AudioPipeline';
 
 const Article: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -13,6 +14,7 @@ const Article: React.FC = () => {
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [volume, setVolume] = useState(1);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const audioQueueRef = useRef<string[]>([]);
 
   useEffect(() => {
     const fetchArticle = async () => {
@@ -41,15 +43,36 @@ const Article: React.FC = () => {
     }
   }, [volume]);
 
+  useEffect(() => {
+    if (audioUrl && isPlaying && audioRef.current) {
+      audioRef.current.play().catch(e => console.error("Play failed", e));
+    }
+  }, [audioUrl, isPlaying]);
+
+  const playNextChunk = () => {
+    if (audioQueueRef.current.length > 0) {
+      const nextUrl = audioQueueRef.current.shift();
+      if (nextUrl) {
+        setAudioUrl(nextUrl);
+      }
+    } else {
+      if (!isGeneratingAudio) {
+        setIsPlaying(false);
+        setAudioUrl(null);
+      }
+    }
+  };
+
   const handlePlayAudio = async () => {
     if (audioUrl) {
       if (audioRef.current) {
         if (isPlaying) {
           audioRef.current.pause();
+          setIsPlaying(false);
         } else {
           audioRef.current.play();
+          setIsPlaying(true);
         }
-        setIsPlaying(!isPlaying);
       }
       return;
     }
@@ -57,28 +80,37 @@ const Article: React.FC = () => {
     if (!article) return;
 
     setIsGeneratingAudio(true);
+    setIsPlaying(true);
+    audioQueueRef.current = [];
+
     try {
-      const blob = await generateAiAudio(article.content);
-      const url = URL.createObjectURL(blob);
-      setAudioUrl(url);
+      const audioPipeline = new AudioPipeline();
+      const stream = audioPipeline.generateStreamedSpeech(article.content);
       
-      // Wait for state update then play
-      setTimeout(() => {
-        if (audioRef.current) {
-          audioRef.current.play();
-          setIsPlaying(true);
+      for await (const blob of stream) {
+        const url = URL.createObjectURL(blob);
+        audioQueueRef.current.push(url);
+        
+        if (!audioRef.current?.src || audioRef.current.ended || audioRef.current.paused) {
+           // If we are not playing, try to play next chunk
+           // But we need to be careful not to interrupt if it's just paused by user?
+           // If isPlaying is true, we should be playing.
+           if (isPlaying && (!audioRef.current?.src || audioRef.current.ended)) {
+               playNextChunk();
+           }
         }
-      }, 100);
+      }
     } catch (error) {
       console.error('Failed to generate audio:', error);
       alert('Failed to generate audio. Check backend logs.');
+      setIsPlaying(false);
     } finally {
       setIsGeneratingAudio(false);
     }
   };
 
   const handleAudioEnded = () => {
-    setIsPlaying(false);
+    playNextChunk();
   };
 
   if (loading) return (

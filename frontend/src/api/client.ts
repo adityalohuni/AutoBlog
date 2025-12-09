@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { AIService } from '../services/AIService';
 
 export interface Article {
   id: number;
@@ -43,26 +42,3 @@ export const getPrompts = async (): Promise<any> => {
   return response.data;
 };
 
-const aiService = AIService.getInstance();
-
-export const generateNewArticle = async (params: { title: string, context: string, model: string }) => {
-  const articleData = await aiService.generateArticle(params.title, params.context, params.model);
-  return createArticle(articleData);
-};
-
-export const getAiModels = async () => {
-  return aiService.getAiModels();
-};
-
-export const downloadModel = async (model: string, onProgress?: (data: any) => void) => {
-  return aiService.downloadModel(model, onProgress);
-};
-
-export const generateAiText = async (prompt: string, model: string, maxTokens: number) => {
-  const text = await aiService.generateAiText(prompt, model, maxTokens);
-  return { text };
-};
-
-export const generateAiAudio = async (text: string) => {
-  return aiService.generateAudio(text);
-};

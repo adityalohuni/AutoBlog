@@ -107,42 +107,13 @@ export class AIService {
     return result.text;
   }
 
-  public async generateArticle(title: string, context: string, model: string): Promise<{ title: string, content: string }> {
-    let prompt = '';
-    try {
-      const templates = await getPrompts();
-      if (templates?.blog_generation?.user_template) {
-        prompt = templates.blog_generation.user_template.replace('{topic}', context);
-      } else {
-        prompt = `Write a blog post about ${context}. Include a catchy title and clear headings.`;
-      }
-    } catch (e) {
-      console.warn('Failed to fetch templates', e);
-      prompt = `Write a blog post about ${context}. Include a catchy title and clear headings.`;
-    }
-
-    const content = await this.generateAiText(prompt, model, 1000);
-    
-    // Simple parsing to extract title if generated, or use provided title
-    let finalTitle = title;
-    let finalContent = content;
-
-    // If title is empty, try to extract from first line if it looks like a title
-    if (!finalTitle) {
-      const lines = content.split('\n');
-      if (lines.length > 0 && lines[0].length < 100) {
-        finalTitle = lines[0].replace(/^#\s*/, '').trim();
-        finalContent = lines.slice(1).join('\n').trim();
-      } else {
-        finalTitle = 'Untitled Article';
-      }
-    }
-
-    return { title: finalTitle, content: finalContent };
-  }
-
   public async generateAudio(text: string): Promise<Blob> {
     const result = await this.postMessage('generateSpeech', { text });
     return new Blob([result.audio], { type: 'audio/wav' });
+  }
+
+  public async generateEmbedding(text: string, model: string = 'all-MiniLM-L6-v2'): Promise<number[]> {
+    const result = await this.postMessage('embed', { text, model });
+    return result.embedding;
   }
 }
