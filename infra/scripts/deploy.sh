@@ -1,8 +1,21 @@
 #!/bin/bash
 
-# Variables
-AWS_REGION="us-east-1" # Change as needed
-ECR_REPO_URI="<YOUR_ECR_REPO_URI>"
+# Load env vars if .env exists
+if [ -f .env ]; then
+  export $(grep -v '^#' .env | xargs)
+elif [ -f "../.env" ]; then
+  export $(grep -v '^#' ../.env | xargs)
+elif [ -f "../../backend/.env" ]; then
+  # Fallback to backend/.env if running from scripts dir
+  export $(grep -v '^#' "../../backend/.env" | xargs)
+fi
+
+# Validate required variables
+if [ -z "$AWS_REGION" ] || [ -z "$ECR_REPO_URI" ]; then
+  echo "Error: AWS_REGION and ECR_REPO_URI must be set in .env"
+  exit 1
+fi
+
 
 # Login to ECR
 aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO_URI
@@ -15,20 +28,31 @@ docker pull $ECR_REPO_URI:frontend-latest
 docker stop backend frontend || true
 docker rm backend frontend || true
 
+# Ensure network exists
+docker network create blog-net || true
+
 # Run Backend
+# Requires ADMIN_USERNAME, ADMIN_PASSWORD to be set in environment or .env
 docker run -d --name backend \
   --network blog-net \
+  --restart always \
   -p 3000:3000 \
+  -e PORT=3000 \
   -e DB_HOST=postgres \
-  -e DB_USER=postgres \
-  -e DB_PASSWORD=postgres \
-  -e DB_NAME=blog_db \
+  -e DB_USER="${POSTGRES_USER}" \
+  -e DB_PASSWORD="${POSTGRES_PASSWORD}" \
+  -e DB_NAME="${POSTGRES_DB}" \
+  -e ADMIN_USERNAME="${ADMIN_USERNAME}" \
+  -e ADMIN_PASSWORD="${ADMIN_PASSWORD}" \
+  -v models_cache:/app/models_cache \
   $ECR_REPO_URI:backend-latest
 
 # Run Frontend
+# Maps host port 80 to container port 8080 (nginx default in Dockerfile)
 docker run -d --name frontend \
   --network blog-net \
-  -p 80:80 \
+  --restart always \
+  -p 80:8080 \
   $ECR_REPO_URI:frontend-latest
 
 # Prune old images
