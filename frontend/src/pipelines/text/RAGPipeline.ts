@@ -34,7 +34,9 @@ export class RAGPipeline {
     }
   }
 
-  async retrieveContext(query: string): Promise<string[]> {
+  async retrieveContext(query: string, onProgress?: (stage: string, data?: any) => void): Promise<string[]> {
+    if (onProgress) onProgress('SEARCHING', 'Searching Europe PMC and Wikipedia...');
+    
     const [pmc, wiki] = await Promise.all([
       this.searchEuropePMC(query),
       this.searchWikipedia(query)
@@ -51,6 +53,7 @@ export class RAGPipeline {
     }
 
     try {
+      if (onProgress) onProgress('RERANKING', 'Analyzing and re-ranking results...');
       const aiService = AIService.getInstance();
       const queryEmbedding = await aiService.generateEmbedding(query);
 

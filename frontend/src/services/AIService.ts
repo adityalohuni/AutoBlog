@@ -1,7 +1,7 @@
 import Worker from '../workers/ai.worker.ts?worker';
 import { AVAILABLE_MODELS } from '../constants/aiModels';
-import axios from 'axios';
-import { getPrompts } from '../api/client';
+import { GoogleGenAI } from '@google/genai';
+import Cerebras from '@cerebras/cerebras_cloud_sdk';
 
 interface WorkerMessage {
   type: string;
@@ -61,25 +61,85 @@ export class AIService {
 
   public async getAiModels() {
     const models = { ...AVAILABLE_MODELS };
-    const geminiKey = localStorage.getItem('geminiApiKey');
-    if (!geminiKey) {
-      delete (models as any)['gemini-pro'];
-    }
+    
+    Object.keys(models).forEach(key => {
+      const model = models[key];
+      if (model.requiredKey) {
+        const apiKey = localStorage.getItem(model.requiredKey);
+        if (!apiKey) {
+          delete models[key];
+        }
+      }
+    });
+
     return models;
   }
 
-  private async generateGeminiText(prompt: string, apiKey: string): Promise<string> {
+  private async generateGeminiText(prompt: string, apiKey: string, systemPrompt?: string): Promise<string> {
     try {
-      const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
+      const ai = new GoogleGenAI({
+        apiKey: apiKey,
+      });
+      
+      const config: any = {};
+      if (systemPrompt) {
+        config.systemInstruction = {
+          parts: [{ text: systemPrompt }]
+        };
+      }
+
+      const model = 'gemini-2.0-flash-lite';
+      const contents = [
         {
-          contents: [{ parts: [{ text: prompt }] }]
+          role: 'user',
+          parts: [
+            {
+              text: prompt,
+            },
+          ],
+        },
+      ];
+
+      const response = await ai.models.generateContentStream({
+        model,
+        config,
+        contents,
+      });
+
+      let fullText = '';
+      for await (const chunk of response) {
+        if (chunk.text) {
+          fullText += chunk.text;
         }
-      );
-      return response.data.candidates[0].content.parts[0].text;
+      }
+      return fullText;
     } catch (error) {
       console.error('Gemini API Error:', error);
       throw new Error('Failed to generate text with Gemini');
+    }
+  }
+
+  private async generateCerebrasText(prompt: string, model: string, apiKey: string, systemPrompt?: string): Promise<string> {
+    try {
+      const client = new Cerebras({
+        apiKey: apiKey,
+      });
+
+      const messages: any[] = [];
+      if (systemPrompt) {
+        messages.push({ role: 'system', content: systemPrompt });
+      }
+      messages.push({ role: 'user', content: prompt });
+
+      const completionCreateResponse: any = await client.chat.completions.create({
+        messages: messages,
+        model: model,
+      });
+
+      return completionCreateResponse.choices[0]?.message?.content || '';
+    } catch (error) {
+      console.error('Cerebras API Error:', error);
+      throw new Error('Failed to generate text with Cerebras');
     }
   }
 
@@ -87,22 +147,20 @@ export class AIService {
     return this.postMessage('load', { model }, onProgress);
   }
 
-  public async generateAiText(prompt: string, model: string, maxTokens: number): Promise<string> {
-    if (model === 'gemini-pro') {
+  public async generateAiText(prompt: string, model: string, maxTokens: number, systemPrompt?: string): Promise<string> {
+    if (model === 'gemini-2.0-flash-lite') {
       const apiKey = localStorage.getItem('geminiApiKey');
       if (!apiKey) throw new Error('Gemini API Key not found');
-      
-      // Fetch prompts from backend
-      try {
-        const templates = await getPrompts();
-        // Use templates if needed, for now we just log them to show they are fetched
-        console.log('Fetched templates:', templates);
-      } catch (e) {
-        console.warn('Failed to fetch templates', e);
-      }
 
-      return this.generateGeminiText(prompt, apiKey);
+      return this.generateGeminiText(prompt, apiKey, systemPrompt);
     }
+
+    if (model === 'llama3.1-8b' || model === 'llama-3.3-70b' || model === 'gpt-oss-120b' || model === 'qwen-3-32b') {
+      const apiKey = localStorage.getItem('cerebrasApiKey');
+      if (!apiKey) throw new Error('Cerebras API Key not found');
+      return this.generateCerebrasText(prompt, model, apiKey, systemPrompt);
+    }
+
     const result = await this.postMessage('generateText', { prompt, model, params: { max_new_tokens: maxTokens } });
     return result.text;
   }

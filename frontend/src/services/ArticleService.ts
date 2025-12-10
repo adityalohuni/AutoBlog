@@ -16,8 +16,9 @@ export class ArticleService {
     return ArticleService.instance;
   }
 
-  public async generateNewArticle(params: { title: string, context: string, model: string }): Promise<Article> {
-    const articleData = await this.articlePipeline.generateArticle(params.title, params.context, params.model);
+  public async generateNewArticle(params: { title: string, context: string, model: string }, onProgress?: (stage: string, data?: any) => void): Promise<Article> {
+    const articleData = await this.articlePipeline.generateArticle(params.title, params.context, params.model, onProgress);
+    // Creates the URL in backend
     return createArticle(articleData);
   }
 }

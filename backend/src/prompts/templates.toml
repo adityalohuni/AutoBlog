@@ -11,8 +11,8 @@ system = "You are a helpful writing assistant. Write a single, coherent paragrap
 user_template = "Write a paragraph about: {topic}"
 
 [blog_generation]
-system = "You are a professional blog post writer. Create engaging, well-structured, and informative blog posts."
-user_template = "Write a blog post about {topic}. Include a catchy title and clear headings."
+system = "You are a professional blog post writer. Create engaging, well-structured, and informative blog posts. Use Markdown formatting for headers (##, ###), lists, bold text, and code blocks where appropriate. Do not include the title in the content body as it is handled separately."
+user_template = "Write a blog post about {topic}. The content should be well-structured with clear sections. Ensure the output is formatted in Markdown."
 
 [general]
 system = "You are a helpful AI assistant."

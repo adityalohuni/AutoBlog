@@ -3,6 +3,7 @@ export interface AIModelConfig {
   task: string;
   type: string;
   description: string;
+  requiredKey?: string;
 }
 
 export const AVAILABLE_MODELS: Record<string, AIModelConfig> = {
@@ -60,10 +61,39 @@ export const AVAILABLE_MODELS: Record<string, AIModelConfig> = {
     type: 'seq2seq',
     description: 'Translation (Multi-lingual)'
   },
-  'gemini-pro': {
-    name: 'Google Gemini Pro',
+  'gemini-2.0-flash-lite': {
+    name: 'Google Gemini 2.0 Flash Lite',
     task: 'text-generation',
     type: 'api',
-    description: 'Google Gemini Pro API'
+    description: 'Google Gemini 2.0 Flash Lite API',
+    requiredKey: 'geminiApiKey'
+  },
+  'llama3.1-8b': {
+    name: 'Cerebras Llama 3.1 8B',
+    task: 'text-generation',
+    type: 'api',
+    description: 'Cerebras Inference Llama 3.1 8B',
+    requiredKey: 'cerebrasApiKey'
+  },
+  'llama-3.3-70b': {
+    name: 'Cerebras Llama 3.3 70B',
+    task: 'text-generation',
+    type: 'api',
+    description: 'Cerebras Inference Llama 3.3 70B',
+    requiredKey: 'cerebrasApiKey'
+  },
+  'gpt-oss-120b': {
+    name: 'OpenAI GPT OSS',
+    task: 'text-generation',
+    type: 'api',
+    description: 'Cerebras Inference OpenAI GPT OSS 120B',
+    requiredKey: 'cerebrasApiKey'
+  },
+  'qwen-3-32b': {
+    name: 'Qwen 3 32B',
+    task: 'text-generation',
+    type: 'api',
+    description: 'Cerebras Inference Qwen 3 32B',
+    requiredKey: 'cerebrasApiKey'
   }
 };

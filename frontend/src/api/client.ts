@@ -13,6 +13,19 @@ const client = axios.create({
   baseURL: API_URL,
 });
 
+export const setAuthCredentials = (username: string, password: string) => {
+  const token = btoa(`${username}:${password}`);
+  client.defaults.headers.common['Authorization'] = `Basic ${token}`;
+};
+
+export const login = async (username: string, password: string): Promise<void> => {
+  await client.post('/auth/login', { username, password });
+};
+
+export const clearAuthCredentials = () => {
+  delete client.defaults.headers.common['Authorization'];
+};
+
 export const getArticles = async (): Promise<Article[]> => {
   const response = await client.get('/articles');
   return response.data;

@@ -1,21 +1,29 @@
 import { AIService } from '../../services/AIService';
 import { getPrompts } from '../../api/client';
 import { RAGPipeline } from './RAGPipeline';
+import { getRandomWikipediaTitle } from '../../services/WikipediaService';
 
 export class ArticlePipeline {
-  public async generateArticle(title: string, context: string, model: string): Promise<{ title: string, content: string }> {
+  public async generateArticle(title: string, context: string, model: string, onProgress?: (stage: string, data?: any) => void): Promise<{ title: string, content: string }> {
+    if (!title || title.length === 0) {
+      if (onProgress) onProgress('INIT', 'Generating random topic...');
+      title = await getRandomWikipediaTitle();
+    }
+
     let prompt = '';
+    let systemPrompt = '';
     let backgroundInfo = '';
+
+    const searchQuery = context.length > 0 ? `${title}\n${context}` : title;
 
     // Perform RAG to get background context
     try {
-      console.log('Starting RAG retrieval for:', context);
       const ragPipeline = new RAGPipeline();
-      const chunks = await ragPipeline.retrieveContext(context);
+      const chunks = await ragPipeline.retrieveContext(searchQuery, onProgress);
       if (chunks.length > 0) {
         // Use top 5 chunks to provide rich context without overflowing
         backgroundInfo = chunks.slice(0, 5).join('\n\n');
-        console.log('RAG retrieved context length:', backgroundInfo.length);
+        if (onProgress) onProgress('PROCESSING_CONTEXT', chunks.slice(0, 5));
       }
     } catch (e) {
       console.warn('RAG retrieval failed', e);
@@ -24,12 +32,15 @@ export class ArticlePipeline {
     try {
       const templates = await getPrompts();
       if (templates?.blog_generation?.user_template) {
-        prompt = templates.blog_generation.user_template.replace('{topic}', context);
+        prompt = templates.blog_generation.user_template.replace('{topic}', searchQuery);
+        if (templates.blog_generation.system) {
+          systemPrompt = templates.blog_generation.system;
+        }
         if (backgroundInfo) {
           prompt += `\n\nRelevant Research:\n${backgroundInfo}`;
         }
       } else {
-        prompt = `Write a blog post about ${context}.`;
+        prompt = `Write a blog post about ${searchQuery}.`;
         if (backgroundInfo) {
           prompt += `\n\nUse the following research to write the article:\n${backgroundInfo}`;
         }
@@ -37,15 +48,16 @@ export class ArticlePipeline {
       }
     } catch (e) {
       console.warn('Failed to fetch templates', e);
-      prompt = `Write a blog post about ${context}.`;
+      prompt = `Write a blog post about ${searchQuery}.`;
       if (backgroundInfo) {
         prompt += `\n\nUse the following research to write the article:\n${backgroundInfo}`;
       }
       prompt += `\n\nInclude a catchy title and clear headings.`;
     }
 
+    if (onProgress) onProgress('GENERATING', 'Generating article content...');
     const aiService = AIService.getInstance();
-    const content = await aiService.generateAiText(prompt, model, 2000);
+    const content = await aiService.generateAiText(prompt, model, 2000, systemPrompt);
     
     // Simple parsing to extract title if generated, or use provided title
     let finalTitle = title;

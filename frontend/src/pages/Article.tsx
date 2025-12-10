@@ -2,6 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Calendar, Clock, Volume2, Pause, Play } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { getArticle, Article as ArticleType } from '../api/client';
 import { AudioPipeline } from '../pipelines/audio/AudioPipeline';
 
@@ -199,8 +201,10 @@ const Article: React.FC = () => {
             />
           </div>
 
-          <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed whitespace-pre-wrap font-serif">
-            {article.content}
+          <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed font-serif">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {article.content}
+            </ReactMarkdown>
           </div>
         </div>
       </article>

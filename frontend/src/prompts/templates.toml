@@ -1,5 +1,0 @@
-[generation]
-default_system = "You are a helpful assistant."
-
-[summarization]
-default_system = "Summarize the following text."

@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Calendar, ArrowRight } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { getArticles, Article } from '../api/client';
 
 const Home: React.FC = () => {
@@ -61,9 +63,11 @@ const Home: React.FC = () => {
                 {article.title}
               </h2>
               
-              <p className="text-gray-600 leading-relaxed mb-6 flex-grow">
-                {article.content.substring(0, 150)}...
-              </p>
+              <div className="text-gray-600 leading-relaxed mb-6 flex-grow prose prose-sm max-w-none line-clamp-3">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {article.content}
+                </ReactMarkdown>
+              </div>
               
               <div className="flex items-center text-blue-600 font-medium group-hover:translate-x-2 transition-transform">
                 Read Article <ArrowRight size={16} className="ml-2" />

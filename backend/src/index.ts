@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import { Database } from './infrastructure/database';
 import articlesRouter from './routes/articles';
 import promptsRouter from './routes/prompts';
+import authRouter from './routes/auth';
 import { errorHandler } from './middleware/errorHandler';
 import { config } from './config/env';
 
@@ -19,6 +20,7 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
+app.use('/auth', authRouter);
 app.use('/articles', articlesRouter);
 app.use('/prompts', promptsRouter);
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Edit2, Trash2, X, Sparkles, FileText, Settings } from 'lucide-react';
-import { getArticles, deleteArticle, updateArticle } from '../api/client';
+import { Plus, Edit2, Trash2, X, Sparkles, FileText, Settings, Lock } from 'lucide-react';
+import { getArticles, deleteArticle, updateArticle, setAuthCredentials, login } from '../api/client';
 import { AIService } from '../services/AIService';
 import { articleService } from '../services/ArticleService';
 import AiEditor from '../components/AiEditor';
@@ -22,6 +22,7 @@ const Admin: React.FC = () => {
   // Settings State
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [geminiKey, setGeminiKey] = useState(localStorage.getItem('geminiApiKey') || '');
+  const [cerebrasKey, setCerebrasKey] = useState(localStorage.getItem('cerebrasApiKey') || '');
   const [defaultModel, setDefaultModel] = useState(localStorage.getItem('defaultModel') || 'LaMini-Flan-T5-783M');
 
   // Modal State
@@ -30,9 +31,52 @@ const Admin: React.FC = () => {
   const [genContext, setGenContext] = useState('');
   const [genModel, setGenModel] = useState(defaultModel);
   const [availableModels, setAvailableModels] = useState<any>({});
+  const [generationStatus, setGenerationStatus] = useState<string>('');
+  const [generationData, setGenerationData] = useState<any>(null);
+
+  // Auth State
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const storedUser = localStorage.getItem('adminUser');
+      const storedPass = localStorage.getItem('adminPass');
+      if (storedUser && storedPass) {
+        try {
+          await login(storedUser, storedPass);
+          setAuthCredentials(storedUser, storedPass);
+          setIsAuthenticated(true);
+        } catch (error) {
+          console.error('Auto-login failed:', error);
+          localStorage.removeItem('adminUser');
+          localStorage.removeItem('adminPass');
+        }
+      }
+    };
+    checkAuth();
+  }, []);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
+    try {
+      await login(username, password);
+      setAuthCredentials(username, password);
+      localStorage.setItem('adminUser', username);
+      localStorage.setItem('adminPass', password);
+      setIsAuthenticated(true);
+    } catch (error) {
+      console.error('Login failed:', error);
+      setLoginError('Invalid username or password');
+    }
+  };
 
   const handleSaveSettings = () => {
     localStorage.setItem('geminiApiKey', geminiKey);
+    localStorage.setItem('cerebrasApiKey', cerebrasKey);
     localStorage.setItem('defaultModel', defaultModel);
     setGenModel(defaultModel);
     setShowSettingsModal(false);
@@ -68,8 +112,18 @@ const Admin: React.FC = () => {
 
   const handleGenerateSubmit = async () => {
     setGenerating(true);
+    setGenerationStatus('Starting...');
+    setGenerationData(null);
     try {
-      await articleService.generateNewArticle({ title: genTitle, context: genContext, model: genModel });
+      await articleService.generateNewArticle(
+        { title: genTitle, context: genContext, model: genModel },
+        (stage, data) => {
+          setGenerationStatus(data && typeof data === 'string' ? data : stage);
+          if (stage === 'PROCESSING_CONTEXT') {
+            setGenerationData(data);
+          }
+        }
+      );
       setShowGenerateModal(false);
       setGenTitle('');
       setGenContext('');
@@ -81,6 +135,8 @@ const Admin: React.FC = () => {
       alert(`${msg}${details ? ': ' + details : ''}`);
     } finally {
       setGenerating(false);
+      setGenerationStatus('');
+      setGenerationData(null);
     }
   };
 
@@ -96,6 +152,58 @@ const Admin: React.FC = () => {
       console.error('Failed to save:', error);
     }
   };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-100"
+        >
+          <div className="flex justify-center mb-6">
+            <div className="p-3 bg-blue-50 text-blue-600 rounded-full">
+              <Lock size={32} />
+            </div>
+          </div>
+          <h2 className="text-2xl font-bold text-center text-gray-900 mb-6">Admin Access</h2>
+          <form onSubmit={handleLogin} className="space-y-4">
+            {loginError && (
+              <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100">
+                {loginError}
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                placeholder="Enter username"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                placeholder="Enter password"
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors font-medium shadow-lg"
+            >
+              Login
+            </button>
+          </form>
+        </motion.div>
+      </div>
+    );
+  }
 
   if (loading) return (
     <div className="flex justify-center items-center h-64">
@@ -250,6 +358,7 @@ const Admin: React.FC = () => {
                 <button 
                   onClick={() => setShowGenerateModal(false)}
                   className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+                  disabled={generating}
                 >
                   Cancel
                 </button>
@@ -259,10 +368,12 @@ const Admin: React.FC = () => {
                   className="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-lg disabled:opacity-50 flex items-center gap-2"
                 >
                   {generating ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Generating...
-                    </>
+                    <div className="flex flex-col items-center">
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Generating...</span>
+                      </div>
+                    </div>
                   ) : (
                     <>
                       <Sparkles size={16} />
@@ -271,6 +382,49 @@ const Admin: React.FC = () => {
                   )}
                 </button>
               </div>
+              {generating && (
+                <div className="px-6 pb-6 bg-gray-50 border-t border-gray-100">
+                  <div className="mt-4 space-y-3">
+                    <div className="flex items-center justify-between text-sm text-gray-600">
+                      <span className="font-medium">{generationStatus}</span>
+                    </div>
+                    
+                    {generationData && (
+                      <div className="relative h-24 bg-white rounded-lg border border-gray-200 overflow-hidden">
+                        <div className="absolute inset-0 p-3 text-xs text-gray-500 font-mono leading-relaxed opacity-70">
+                          <motion.div
+                            animate={{ y: [0, -100] }}
+                            transition={{ repeat: Infinity, duration: 10, ease: "linear" }}
+                          >
+                            {Array.isArray(generationData) ? generationData.join('\n\n') : JSON.stringify(generationData, null, 2)}
+                          </motion.div>
+                        </div>
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white pointer-events-none" />
+                      </div>
+                    )}
+
+                    {generationStatus === 'GENERATING' && (
+                      <div className="h-16 flex items-center justify-center gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <motion.div
+                            key={i}
+                            className="w-2 h-2 bg-blue-500 rounded-full"
+                            animate={{
+                              scale: [1, 1.5, 1],
+                              opacity: [0.5, 1, 0.5]
+                            }}
+                            transition={{
+                              duration: 1,
+                              repeat: Infinity,
+                              delay: i * 0.2
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </motion.div>
           </div>
         )}
@@ -306,6 +460,18 @@ const Admin: React.FC = () => {
                     className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
                   />
                   <p className="text-xs text-gray-500 mt-1">Required for Gemini Pro model.</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Cerebras API Key</label>
+                  <input 
+                    type="password" 
+                    value={cerebrasKey} 
+                    onChange={(e) => setCerebrasKey(e.target.value)}
+                    placeholder="Enter your Cerebras API Key"
+                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Required for Cerebras models.</p>
                 </div>
 
                 <div>

@@ -12,4 +12,8 @@ export const config = {
     password: process.env.DB_PASSWORD || 'postgres',
     port: parseInt(process.env.DB_PORT || '5432', 10),
   },
+  admin: {
+    username: process.env.ADMIN_USERNAME || 'admin',
+    password: process.env.ADMIN_PASSWORD || 'admin123',
+  }
 };
