@@ -64,8 +64,21 @@ const Home: React.FC = () => {
               </h2>
               
               <div className="text-gray-600 leading-relaxed mb-6 flex-grow prose prose-sm max-w-none line-clamp-3">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {article.content}
+                <ReactMarkdown 
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    // Strip headings for preview
+                    h1: ({children}) => <p className="font-bold">{children}</p>,
+                    h2: ({children}) => <p className="font-bold">{children}</p>,
+                    h3: ({children}) => <p className="font-bold">{children}</p>,
+                    // Hide thinking blocks in preview
+                    code: ({className, children}) => {
+                      const match = /language-(\w+)/.exec(className || '');
+                      return match && match[1] === 'thinking' ? null : <code>{children}</code>;
+                    }
+                  }}
+                >
+                  {article.content.replace(/<think>[\s\S]*?<\/think>/g, '')}
                 </ReactMarkdown>
               </div>
               

@@ -21,6 +21,8 @@ const Admin: React.FC = () => {
   
   // Settings State
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [articleToDelete, setArticleToDelete] = useState<number | null>(null);
   const [geminiKey, setGeminiKey] = useState(localStorage.getItem('geminiApiKey') || '');
   const [cerebrasKey, setCerebrasKey] = useState(localStorage.getItem('cerebrasApiKey') || '');
   const [defaultModel, setDefaultModel] = useState(localStorage.getItem('defaultModel') || 'LaMini-Flan-T5-783M');
@@ -33,6 +35,7 @@ const Admin: React.FC = () => {
   const [availableModels, setAvailableModels] = useState<any>({});
   const [generationStatus, setGenerationStatus] = useState<string>('');
   const [generationData, setGenerationData] = useState<any>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   // Auth State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -99,21 +102,29 @@ const Admin: React.FC = () => {
     AIService.getInstance().getAiModels().then(setAvailableModels).catch(console.error);
   }, []);
 
-  const handleDelete = async (id: any) => {
-    if (window.confirm('Are you sure you want to delete this article?')) {
+  const handleDeleteClick = (id: number) => {
+    setArticleToDelete(id);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (articleToDelete) {
       try {
-        await deleteArticle(id);
+        await deleteArticle(articleToDelete.toString());
         fetchArticles();
       } catch (error) {
         console.error('Failed to delete:', error);
       }
     }
+    setShowDeleteModal(false);
+    setArticleToDelete(null);
   };
 
   const handleGenerateSubmit = async () => {
     setGenerating(true);
     setGenerationStatus('Starting...');
     setGenerationData(null);
+    setGenerationError(null);
     try {
       await articleService.generateNewArticle(
         { title: genTitle, context: genContext, model: genModel },
@@ -132,7 +143,7 @@ const Admin: React.FC = () => {
       console.error('Failed to generate:', error);
       const msg = error.response?.data?.message || error.message || 'Failed to generate article';
       const details = error.response?.data?.errors?.map((e: any) => e.message).join(', ');
-      alert(`${msg}${details ? ': ' + details : ''}`);
+      setGenerationError(`${msg}${details ? ': ' + details : ''}`);
     } finally {
       setGenerating(false);
       setGenerationStatus('');
@@ -288,7 +299,7 @@ const Admin: React.FC = () => {
                 <Edit2 size={18} />
               </button>
               <button 
-                onClick={() => handleDelete(article.id)}
+                onClick={() => handleDeleteClick(article.id)}
                 className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                 title="Delete"
               >
@@ -319,6 +330,12 @@ const Admin: React.FC = () => {
               </div>
               
               <div className="p-6 space-y-6">
+                {generationError && (
+                  <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100 flex items-start gap-2">
+                    <div className="mt-0.5">⚠️</div>
+                    <div>{generationError}</div>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Title (Optional)</label>
                   <input 
@@ -425,6 +442,43 @@ const Admin: React.FC = () => {
                   </div>
                 </div>
               )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showDeleteModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+            >
+              <div className="p-6 text-center">
+                <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Trash2 size={24} />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Article?</h3>
+                <p className="text-gray-500 mb-6">
+                  Are you sure you want to delete this article? This action cannot be undone.
+                </p>
+                <div className="flex gap-3 justify-center">
+                  <button 
+                    onClick={() => setShowDeleteModal(false)}
+                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={confirmDelete}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-lg font-medium"
+                  >
+                    Delete Article
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </div>
         )}

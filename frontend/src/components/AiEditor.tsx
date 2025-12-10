@@ -22,6 +22,14 @@ const AiEditor: React.FC<AiEditorProps> = ({ initialContent, onSave, onCancel })
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<any>(null);
   const [templates, setTemplates] = useState<any>(null);
+  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  useEffect(() => {
+    if (statusMessage) {
+      const timer = setTimeout(() => setStatusMessage(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [statusMessage]);
 
   useEffect(() => {
     const fetchModels = async () => {
@@ -55,10 +63,10 @@ const AiEditor: React.FC<AiEditorProps> = ({ initialContent, onSave, onCancel })
       await AIService.getInstance().downloadModel(selectedModel, (progress: any) => {
           setDownloadProgress(progress);
       });
-      alert(`Model ${selectedModel} downloaded/preloaded successfully!`);
+      setStatusMessage({ type: 'success', text: `Model ${selectedModel} downloaded successfully!` });
     } catch (error) {
       console.error('Download failed:', error);
-      alert('Failed to download model.');
+      setStatusMessage({ type: 'error', text: 'Failed to download model.' });
     } finally {
       setDownloading(false);
       setDownloadProgress(null);
@@ -98,14 +106,21 @@ const AiEditor: React.FC<AiEditorProps> = ({ initialContent, onSave, onCancel })
       }
     } catch (error) {
       console.error('AI Generation failed:', error);
-      alert('AI Generation failed. Check console.');
+      setStatusMessage({ type: 'error', text: 'AI Generation failed. Check console.' });
     } finally {
       setAiLoading(false);
     }
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden flex flex-col h-[600px]">
+    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden flex flex-col h-[600px] relative">
+      {statusMessage && (
+        <div className={`absolute top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-lg text-sm font-medium ${
+          statusMessage.type === 'success' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'
+        }`}>
+          {statusMessage.text}
+        </div>
+      )}
       {/* Toolbar */}
       <div className="bg-gray-50 border-b border-gray-200 p-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-4 flex-1">
