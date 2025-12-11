@@ -12,6 +12,13 @@ export const useAudio = (content: string | undefined) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const audioQueueRef = useRef<string[]>([]);
   const currentChunkIndexRef = useRef(0);
+  const isGeneratingAudioRef = useRef(false);
+  const isPlayingRef = useRef(false);
+
+  const updateIsPlaying = (playing: boolean) => {
+    setIsPlaying(playing);
+    isPlayingRef.current = playing;
+  };
 
   // Cleanup URLs on unmount
   useEffect(() => {
@@ -28,11 +35,16 @@ export const useAudio = (content: string | undefined) => {
       if (audioRef.current) {
         audioRef.current.src = audioQueueRef.current[nextIndex];
         audioRef.current.play();
-        setIsPlaying(true);
+        updateIsPlaying(true);
       }
+    } else if (isGeneratingAudioRef.current) {
+      console.log('AudioHook: Waiting for next chunk...');
+      // We are still generating, so we wait.
+      // Increment index so we know we are waiting for 'nextIndex'
+      currentChunkIndexRef.current = nextIndex;
     } else {
       console.log('AudioHook: All chunks finished');
-      setIsPlaying(false);
+      updateIsPlaying(false);
       currentChunkIndexRef.current = 0;
       // Reset to first chunk so user can replay
       if (audioRef.current && audioQueueRef.current.length > 0) {
@@ -46,7 +58,7 @@ export const useAudio = (content: string | undefined) => {
       // If we have content in queue, just play
       if (audioRef.current) {
         audioRef.current.play();
-        setIsPlaying(true);
+        updateIsPlaying(true);
       }
       return;
     }
@@ -58,6 +70,7 @@ export const useAudio = (content: string | undefined) => {
 
     console.log('AudioHook: Starting stream generation');
     setIsGeneratingAudio(true);
+    isGeneratingAudioRef.current = true;
     setAudioError(null);
     
     // Reset state
@@ -94,10 +107,17 @@ export const useAudio = (content: string | undefined) => {
             if (audioRef.current) {
               audioRef.current.src = url;
               audioRef.current.play();
-              setIsPlaying(true);
+              updateIsPlaying(true);
             }
           }, 50);
           isFirst = false;
+        } else if (currentChunkIndexRef.current === audioQueueRef.current.length - 1) {
+          // We were waiting for this chunk
+          console.log(`AudioHook: Next chunk arrived, playing chunk ${currentChunkIndexRef.current + 1}`);
+          if (audioRef.current && isPlayingRef.current) {
+             audioRef.current.src = url;
+             audioRef.current.play().catch(e => console.error("Playback failed", e));
+          }
         }
       }
       console.log('AudioHook: Stream generation complete');
@@ -107,6 +127,7 @@ export const useAudio = (content: string | undefined) => {
       setAudioError('Failed to generate audio.');
     } finally {
       setIsGeneratingAudio(false);
+      isGeneratingAudioRef.current = false;
     }
   };
 
@@ -117,7 +138,7 @@ export const useAudio = (content: string | undefined) => {
       } else {
         audioRef.current.play();
       }
-      setIsPlaying(!isPlaying);
+      updateIsPlaying(!isPlaying);
     } else {
       handlePlayAudio();
     }
@@ -136,7 +157,7 @@ export const useAudio = (content: string | undefined) => {
     // Reset audio state so it regenerates with new voice on next play
     if (isPlaying) {
       audioRef.current?.pause();
-      setIsPlaying(false);
+      updateIsPlaying(false);
     }
     // Clear queue to force regeneration
     audioQueueRef.current.forEach(url => URL.revokeObjectURL(url));
@@ -148,7 +169,7 @@ export const useAudio = (content: string | undefined) => {
   return {
     audioUrl,
     isPlaying,
-    setIsPlaying,
+    setIsPlaying: updateIsPlaying,
     isGeneratingAudio,
     volume,
     audioError,
