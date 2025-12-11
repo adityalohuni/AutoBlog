@@ -1,4 +1,5 @@
 import { pipeline, env } from '@xenova/transformers';
+import { KokoroTTS } from 'kokoro-js';
 import { WaveFile } from 'wavefile';
 import { AVAILABLE_MODELS } from '../constants/aiModels';
 import { setupCustomCache } from '../utils/modelCache';
@@ -12,10 +13,21 @@ setupCustomCache();
 
 // Singleton for generators
 const generators: Record<string, any> = {};
+let kokoroTTS: KokoroTTS | null = null;
 
 const getGenerator = async (modelKey: string, progressCallback?: (data: any) => void) => {
   const config = AVAILABLE_MODELS[modelKey] || AVAILABLE_MODELS['LaMini-Flan-T5-783M'];
   
+  if (config.type === 'tts' && config.name.includes('Kokoro')) {
+    if (!kokoroTTS) {
+      kokoroTTS = await KokoroTTS.from_pretrained(config.name, {
+        dtype: "q8", // Quantized for browser
+        progress_callback: progressCallback
+      });
+    }
+    return { generator: kokoroTTS, config };
+  }
+
   if (!generators[config.name]) {
     generators[config.name] = await pipeline(config.task as any, config.name, {
       progress_callback: progressCallback
@@ -63,11 +75,25 @@ const handlers: Record<string, (data: any, id: number) => Promise<any>> = {
   },
 
   generateSpeech: async (data, _id) => {
-    const { text } = data;
-    const { generator } = await getGenerator('speecht5-tts');
+    const { text, voice } = data;
+    const { generator, config } = await getGenerator('speecht5-tts');
     
-    // Generate speech with Kokoro
-    const output = await generator(text);
+    if (config.name.includes('Kokoro')) {
+      // Use Kokoro-JS
+      const tts = generator as KokoroTTS;
+      const audio = await tts.generate(text, {
+        voice: voice || "af_heart",
+      });
+      
+      const wav = new WaveFile();
+      wav.fromScratch(1, audio.sampling_rate, '32f', audio.audio);
+      return { audio: wav.toBuffer() };
+    }
+
+    // Fallback to SpeechT5
+    const output = await generator(text, {
+      speaker_embeddings: 'https://huggingface.co/datasets/Xenova/transformers.js-docs/resolve/main/speaker_embeddings.bin'
+    });
     
     const wav = new WaveFile();
     wav.fromScratch(1, output.sampling_rate, '32f', output.audio);

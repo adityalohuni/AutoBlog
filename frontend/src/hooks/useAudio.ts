@@ -7,6 +7,8 @@ export const useAudio = (content: string | undefined) => {
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [volume, setVolume] = useState(1);
   const [audioError, setAudioError] = useState<string | null>(null);
+  const [selectedVoice, setSelectedVoice] = useState('af_heart');
+  
   const audioRef = useRef<HTMLAudioElement>(null);
   const audioQueueRef = useRef<string[]>([]);
   const currentChunkIndexRef = useRef(0);
@@ -76,7 +78,7 @@ export const useAudio = (content: string | undefined) => {
         return;
       }
 
-      const generator = AudioPipeline.getInstance().generateStreamedSpeech(cleanText);
+      const generator = AudioPipeline.getInstance().generateStreamedSpeech(cleanText, selectedVoice);
       
       let isFirst = true;
       for await (const blob of generator) {
@@ -129,6 +131,20 @@ export const useAudio = (content: string | undefined) => {
     }
   };
 
+  const handleVoiceChange = (voice: string) => {
+    setSelectedVoice(voice);
+    // Reset audio state so it regenerates with new voice on next play
+    if (isPlaying) {
+      audioRef.current?.pause();
+      setIsPlaying(false);
+    }
+    // Clear queue to force regeneration
+    audioQueueRef.current.forEach(url => URL.revokeObjectURL(url));
+    audioQueueRef.current = [];
+    currentChunkIndexRef.current = 0;
+    setAudioUrl(null);
+  };
+
   return {
     audioUrl,
     isPlaying,
@@ -137,9 +153,11 @@ export const useAudio = (content: string | undefined) => {
     volume,
     audioError,
     audioRef,
+    selectedVoice,
     handlePlayAudio,
     togglePlay,
     handleVolumeChange,
-    handleAudioEnded
+    handleAudioEnded,
+    handleVoiceChange
   };
 };

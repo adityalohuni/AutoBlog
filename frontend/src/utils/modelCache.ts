@@ -42,7 +42,8 @@ const getCachedResponse = async (url: string): Promise<Response | null> => {
 const cacheResponse = async (url: string, response: Response) => {
   try {
     const db = await openDB();
-    const blob = await response.clone().blob(); // Clone so we don't consume the original body
+    // Response is already cloned by the caller
+    const blob = await response.blob(); 
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
     store.put(blob, url);
@@ -67,8 +68,10 @@ export const setupCustomCache = () => {
 
       const response = await originalFetch(input, init);
       if (response.ok) {
-        // Don't await the cache write, let it happen in background
-        cacheResponse(url, response);
+        // Clone the response BEFORE returning it, so we have a fresh copy for the cache
+        // and the original one can be consumed by the caller.
+        const responseToCache = response.clone();
+        cacheResponse(url, responseToCache);
       }
       return response;
     }

@@ -17,9 +17,11 @@ const Article: React.FC = () => {
     volume, 
     audioError, 
     audioRef, 
+    selectedVoice,
     togglePlay, 
     handleVolumeChange,
-    handleAudioEnded
+    handleAudioEnded,
+    handleVoiceChange
   } = useAudio(article?.content);
 
   const [activeHeading, setActiveHeading] = useState<string>('');
@@ -88,9 +90,11 @@ const Article: React.FC = () => {
             volume={volume}
             audioError={audioError}
             audioRef={audioRef}
+            selectedVoice={selectedVoice}
             onTogglePlay={togglePlay}
             onVolumeChange={handleVolumeChange}
             onPlayEnded={handleAudioEnded}
+            onVoiceChange={handleVoiceChange}
           />
 
           <ArticleContent content={processedContent} />

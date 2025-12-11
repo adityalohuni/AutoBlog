@@ -125,13 +125,13 @@ export class AudioPipeline {
     return chunks;
   }
 
-  async *generateStreamedSpeech(text: string): AsyncGenerator<Blob> {
+  async *generateStreamedSpeech(text: string, voice: string = 'af_heart'): AsyncGenerator<Blob> {
     const cleanedText = this.cleanText(text);
     const normalizedText = this.normalizeText(cleanedText);
     const chunks = this.chunkText(normalizedText);
     for (const chunk of chunks) {
       if (chunk.trim()) {
-        yield await this.aiService.generateAudio(chunk);
+        yield await this.aiService.generateAudio(chunk, voice);
       }
     }
   }

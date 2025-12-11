@@ -165,8 +165,8 @@ export class AIService {
     return result.text;
   }
 
-  public async generateAudio(text: string): Promise<Blob> {
-    const result = await this.postMessage('generateSpeech', { text });
+  public async generateAudio(text: string, voice: string = 'af_heart'): Promise<Blob> {
+    const result = await this.postMessage('generateSpeech', { text, voice });
     return new Blob([result.audio], { type: 'audio/wav' });
   }
 
