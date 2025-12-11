@@ -25,11 +25,11 @@ export const AVAILABLE_MODELS: Record<string, AIModelConfig> = {
     type: 'seq2seq',
     description: 'Summarization model'
   },
-  'mms-tts-eng': {
-    name: 'Xenova/mms-tts-eng',
+  'speecht5-tts': {
+    name: 'onnx-community/Kokoro-82M-v1.0-ONNX',
     task: 'text-to-speech',
     type: 'tts',
-    description: 'MMS TTS English'
+    description: 'Kokoro 82M TTS'
   },
   'whisper-tiny': {
     name: 'Xenova/whisper-tiny',

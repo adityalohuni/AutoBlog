@@ -45,19 +45,6 @@ export class Database {
             );
           `);
 
-          const res = await client.query('SELECT COUNT(*) FROM articles');
-          const count = parseInt(res.rows[0].count);
-
-          if (count < 3) {
-            console.log('Seeding initial articles...');
-            await client.query(`
-              INSERT INTO articles (title, content) VALUES 
-              ('Welcome to the Blog', 'This is the first article of our auto-generated blog. Stay tuned for more!'),
-              ('About Tech Challenges', 'Tech challenges are a great way to improve your skills and demonstrate your abilities.'),
-              ('Docker and AWS', 'Learning Docker and AWS is essential for modern web development deployment.')
-            `);
-          }
-
           console.log('Database initialized successfully');
           client.release();
           return;

@@ -1,10 +1,14 @@
 import { pipeline, env } from '@xenova/transformers';
 import { WaveFile } from 'wavefile';
 import { AVAILABLE_MODELS } from '../constants/aiModels';
+import { setupCustomCache } from '../utils/modelCache';
 
 // Configure environment for browser
 env.allowLocalModels = false;
-env.useBrowserCache = true;
+env.useBrowserCache = false; // Disable default cache, we will use our custom IndexedDB
+
+// Initialize custom cache
+setupCustomCache();
 
 // Singleton for generators
 const generators: Record<string, any> = {};
@@ -13,7 +17,7 @@ const getGenerator = async (modelKey: string, progressCallback?: (data: any) => 
   const config = AVAILABLE_MODELS[modelKey] || AVAILABLE_MODELS['LaMini-Flan-T5-783M'];
   
   if (!generators[config.name]) {
-    generators[config.name] = await pipeline(config.task, config.name, {
+    generators[config.name] = await pipeline(config.task as any, config.name, {
       progress_callback: progressCallback
     });
   }
@@ -60,8 +64,9 @@ const handlers: Record<string, (data: any, id: number) => Promise<any>> = {
 
   generateSpeech: async (data, _id) => {
     const { text } = data;
-    const { generator } = await getGenerator('mms-tts-eng');
+    const { generator } = await getGenerator('speecht5-tts');
     
+    // Generate speech with Kokoro
     const output = await generator(text);
     
     const wav = new WaveFile();

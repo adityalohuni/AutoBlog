@@ -3,11 +3,11 @@
 # Load env vars if .env exists
 if [ -f .env ]; then
   export $(grep -v '^#' .env | xargs)
-elif [ -f "../.env" ]; then
-  export $(grep -v '^#' ../.env | xargs)
-elif [ -f "../../backend/.env" ]; then
+elif [ -f "../../.env" ]; then
+  export $(grep -v '^#' ../../.env | xargs)
+elif [ -f "../../../backend/.env" ]; then
   # Fallback to backend/.env if running from scripts dir
-  export $(grep -v '^#' "../../backend/.env" | xargs)
+  export $(grep -v '^#' "../../../backend/.env" | xargs)
 fi
 
 # Validate required variables
@@ -17,26 +17,33 @@ if [ -z "$AWS_REGION" ] || [ -z "$ECR_REPO_URI" ]; then
 fi
 
 
+# Debug: Check AWS Identity
+echo "Checking AWS Identity..."
+aws sts get-caller-identity || { echo "❌ AWS credentials not found!"; exit 1; }
+
 # Login to ECR
-aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO_URI
+echo "Logging in to ECR..."
+aws ecr get-login-password --region $AWS_REGION | sudo docker login --username AWS --password-stdin $ECR_REPO_URI
 
 # Pull latest images
-docker pull $ECR_REPO_URI:backend-latest
-docker pull $ECR_REPO_URI:frontend-latest
+echo "Pulling images..."
+sudo docker pull $ECR_REPO_URI:backend-latest
+sudo docker pull $ECR_REPO_URI:frontend-latest
 
 # Stop existing containers
-docker stop backend frontend || true
-docker rm backend frontend || true
+sudo docker stop backend frontend || true
+sudo docker rm backend frontend || true
 
 # Ensure network exists
-docker network create blog-net || true
+sudo docker network create blog-net || true
 
 # Run Backend
 # Requires ADMIN_USERNAME, ADMIN_PASSWORD to be set in environment or .env
-docker run -d --name backend \
+sudo docker run -d --name backend \
   --network blog-net \
   --restart always \
   -p 3000:3000 \
+  -e NODE_ENV=production \
   -e PORT=3000 \
   -e DB_HOST=postgres \
   -e DB_USER="${POSTGRES_USER}" \
@@ -49,11 +56,11 @@ docker run -d --name backend \
 
 # Run Frontend
 # Maps host port 80 to container port 8080 (nginx default in Dockerfile)
-docker run -d --name frontend \
+sudo docker run -d --name frontend \
   --network blog-net \
   --restart always \
   -p 80:8080 \
   $ECR_REPO_URI:frontend-latest
 
 # Prune old images
-docker image prune -f
+sudo docker image prune -f

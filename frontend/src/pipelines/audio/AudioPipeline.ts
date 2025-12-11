@@ -1,16 +1,57 @@
 import { AIService } from '../../services/AIService';
 
 export class AudioPipeline {
+  private static instance: AudioPipeline;
   private aiService: AIService;
 
   constructor() {
+    console.log('AudioPipeline: Initializing instance');
     this.aiService = AIService.getInstance();
   }
 
+  public static getInstance(): AudioPipeline {
+    if (!AudioPipeline.instance) {
+      console.log('AudioPipeline: Creating new instance');
+      AudioPipeline.instance = new AudioPipeline();
+    }
+    return AudioPipeline.instance;
+  }
+
   async generateSpeech(text: string): Promise<Blob> {
+    console.log('TTS Step 1/4: Starting generation');
     const cleanedText = this.cleanText(text);
     const normalizedText = this.normalizeText(cleanedText);
-    return this.aiService.generateAudio(normalizedText);
+    console.log('TTS Step 2/4: Text cleaned and normalized', { originalLength: text.length, cleanedLength: cleanedText.length });
+    
+    // Use chunking even for single blob generation to avoid model limits
+    const chunks = this.chunkText(normalizedText, 300); // 300 chars is a safe limit for SpeechT5
+    console.log(`TTS Step 3/4: Text chunked into ${chunks.length} parts`);
+    const audioBlobs: Blob[] = [];
+    let lastError: any;
+
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      if (chunk.trim()) {
+        try {
+          console.log(`TTS Step 3.${i+1}/4: Generating audio for chunk ${i+1}/${chunks.length}`);
+          const blob = await this.aiService.generateAudio(chunk);
+          audioBlobs.push(blob);
+        } catch (e) {
+          console.warn('Failed to generate audio for chunk:', chunk, e);
+          lastError = e;
+        }
+      }
+    }
+
+    console.log('TTS Step 4/4: Generation complete, combining blobs');
+    
+    if (audioBlobs.length === 0) {
+      throw lastError || new Error('No audio generated');
+    }
+    
+    // For now, return the first chunk to avoid static noise from concatenated WAV headers
+    // Ideally, the UI should use generateStreamedSpeech
+    return new Blob(audioBlobs, { type: 'audio/wav' });
   }
 
   private normalizeText(text: string): string {

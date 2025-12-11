@@ -15,11 +15,15 @@ sudo mkdir -p /usr/local/lib/docker/cli-plugins
 sudo curl -SL "https://github.com/docker/buildx/releases/latest/download/buildx-linux-amd64" -o /usr/local/lib/docker/cli-plugins/docker-buildx
 sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
 
+# Disable BuildKit for Docker Compose (Fix for EC2 compatibility)
+echo "export DOCKER_BUILDKIT=0" | sudo tee /etc/profile.d/docker-buildkit.sh
+sudo chmod +x /etc/profile.d/docker-buildkit.sh
+
 # Load env vars if .env exists
 if [ -f .env ]; then
   export $(grep -v '^#' .env | xargs)
-elif [ -f "../.env" ]; then
-  export $(grep -v '^#' ../.env | xargs)
+elif [ -f "../../.env" ]; then
+  export $(grep -v '^#' ../../.env | xargs)
 fi
 
 # Create network
